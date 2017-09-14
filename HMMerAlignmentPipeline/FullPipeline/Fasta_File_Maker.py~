@@ -1,0 +1,20 @@
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio.Alphabet import generic_protein
+import csv
+
+filename = 'AllSequences.txt'
+
+with open('%s' %filename, 'r') as f:
+    reader = csv.reader(f, delimiter = '\t')
+    for row in reader:
+
+        UID = row[0]
+        GeneName = row[1]
+        Sequence = row[2]
+
+
+
+        record=SeqRecord(Seq(Sequence, generic_protein), id = '%s' %UID, name = '%s' %GeneName)
+        print(record.format('fasta'))

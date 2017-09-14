@@ -1,0 +1,24 @@
+# The purpose of this file is to read in two tab-delimited files
+# that have been downloaded from a MySQL database. The first
+# is a file containing overlapping genes, the second is a file
+# containing non-overlapping controls.
+
+# The Overlapping genes file will have the following entries:
+# [1] UID
+# [2] Gene Name
+# [3] Overlapping Nucleotide Sequence (in the same frame as the
+# overall gene)
+
+# The controls file will have the following entries:
+# [1] UID
+# [2] Gene Designation (either Coding Gene, Scrambled, or
+# Artificially Frameshifted)
+# [3] Protein Sequence
+
+# We want to run the overlapping sections of the overlapping genes,
+# the frameshifted controls and the coding genes through the program
+# HMMer to see if there are any homologous genes. This program will utilize
+# phmmer to assign homology group IDs. It will then output two files:
+# [1] The UIDs and homology group IDs for the overlapping genes
+# in tab-delimited format
+# [2] The same as the above, but for the non-overlapping controls.
