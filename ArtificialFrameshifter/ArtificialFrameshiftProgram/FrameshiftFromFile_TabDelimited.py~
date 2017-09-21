@@ -1,0 +1,190 @@
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Remove_Start_Stop_Function import removeStartStop
+from Stop_Codon_Remover_Function import stopCodonRemover
+from Excess_Nucleotide_Trimmer import frontTrimmer, backTrimmer
+import csv
+import os, os.path
+from pathlib import Path
+
+filename = 'VirusGenes_Nonoverlapping_Controls_Complete.txt'
+
+
+# The purpose of this program is to take in data from a tab-delimited file,
+# and return two different nucleotide sequences
+# in tab-delimited format. The two sequences will be the original sequence
+# artificially frameshifted into the +1 and +2 frame. The results will
+# be printed to two tab-delimited files .
+
+# All shifting and manipulating is done with the stop and start codons
+# removed from the body of the sequence. The start and stop codons are
+# reattached and the end of the program to each sequence.
+# All sequences will have any stop codons appearing in the new reading frame
+
+
+#First the sequences is read from a tab-delimited file.
+
+# OutputList is a list created for each entry and will be where the output
+# data will be stored and will eventually be printed from
+# UID is the unique ID associated with the entry from the MySQL database where it's stored
+# Family is the viral family the gene is from
+# Species is the name of the viral species where the gene is from
+# GenomeAccession is the ncbi accession number where the gene can be accessed
+# GeneDesignation is the control designation for the gene in question. Unshifted genes
+# should have a designation of ControlGene. The output frameshifted sequences will be given a
+# different GeneDesignation, either ShiftedReadingFrameControlPlusOne or
+# ShiftedReadingFrameControlPlusOne depending on the frameshift type
+# Gene is the name of the gene
+# NucleotideSequence is the input nucleotide sequence which will be used to generate the controls
+# ProteinSequence is the translated NucleotideSequence
+# NoCysProtein is the translated NucleotideSequence with all cysteines removed
+
+# Format of Output of this file:
+# 1 - UID
+# 2 - Family
+# 3 - Species
+# 4 - Genome Accession Number
+# 5 - Protein Accession Number
+# 6 - Gene Designation
+# 7 - Gene Name
+# 8 - Nucleotide Sequence
+# 9 - Protein Sequence
+# 10 - Protein Sequence (No Cys)
+
+
+
+# For the purposes of keeping track of entries, a counter is introduced here, and will count the
+# number of entries that are successfully manipulated.
+
+OldPlusOneFile = Path(
+
+EntryCounter = 0
+NumberWithWrongDesignation = 0
+NumberWithNInSequence = 0
+NumberWithWrongLength = 0
+
+with open('%s'%filename, 'r') as f:
+    reader = csv.reader(f, delimiter = '\t')
+    for row in reader:
+
+        OutputList = []
+        UID = row[0]
+        Family = row[1]
+        Species = row[2]
+        GenomeAccession = row[3]
+        GeneAccession = row[4]
+        GeneDesignation = row[5]
+        Gene = row[6]
+        NucleotideSequence = row[7]
+        ProteinSequence = row[8]
+        NoCysProtein = row[9]
+        
+        # The output list is set up by adding the data that will not change
+
+        OutputList.extend((UID,Family,Species,GenomeAccession,GeneAccession))
+        
+        # Filters are implemented to make sure the nucleotide sequences that are CodingGene, and
+        # that there are no unknown portions of the sequence and that the length is a multiple of
+        # 3. If not, the sequence is ignored
+        
+        # The commented-out "print(Species,Gene)", if uncommented, will allow the user to see
+        # which gene in which species was lost
+        
+        if GeneDesignation != 'CodingGene':
+            NumberWithWrongDesignation += 1
+            print(Species,Gene)
+        else:
+            if 'N' in str(NucleotideSequence):
+                NumberWithNInSequence += 1
+                #print(Species,Gene)
+            else:
+                if len(str(NucleotideSequence))%3 != 0:
+                    NumberWithWrongLength +=1
+                    #print(Species,Gene)
+                
+                # The nucleotide sequence has its start and stop codons removed using the submodule removeStartStop
+                # and the start and stop codons associated with the sequence are stored for later use.
+                else:
+                    EntryCounter += 1
+                    
+                    Unaltered_Sequence = str(NucleotideSequence)
+                    Trimmed_Sequence = removeStartStop(Unaltered_Sequence)
+                    Trimmed_Unshifted_Sequence = str(Trimmed_Sequence[0])
+                    start_codon = str(Trimmed_Sequence[1])
+                    stop_codon = str(Trimmed_Sequence[2])
+
+                    # Now the manipulated sequences are generated. The +1 frameshift removes the first nucleotide
+                    # while the +2 frameshift removes the second nucleotide
+                    
+                    Plus_1_Frameshifted_Sequence  = Trimmed_Unshifted_Sequence[1::]
+                    Plus_2_Frameshifted_Sequence = Trimmed_Unshifted_Sequence[2::]
+
+
+                    # Now the frameshifted sequences are trimmed so they contain a multiple of 3 nucleotides:
+                    # This is done using the submodule backTrimmer, which will remove the minimum number of
+                    # nucleotides to keep the sequence a multiple of 3 in length
+
+                    Plus_1_Frameshifted_Sequence = str(backTrimmer(Plus_1_Frameshifted_Sequence))
+                    Plus_2_Frameshifted_Sequence = str(backTrimmer(Plus_2_Frameshifted_Sequence))
+
+
+                    # The next step removes the stop codons from all of the sequences
+
+                    Trimmed_Unshifted_Sequence_Stops_Removed = Trimmed_Unshifted_Sequence
+                    Plus_1_Frameshifted_Stops_Removed = str(stopCodonRemover(Plus_1_Frameshifted_Sequence))
+                    Plus_2_Frameshifted_Stops_Removed = str(stopCodonRemover(Plus_2_Frameshifted_Sequence))
+     
+
+                    # The start and stop codons are now reattached (and if they were non-existent
+                    # and replaced with '***', those start/stop codons will be removed
+
+                    Trimmed_Unshifted_Sequence = start_codon + Trimmed_Unshifted_Sequence_Stops_Removed + stop_codon
+                    Trimmed_Unshifted_Sequence = Trimmed_Unshifted_Sequence.replace("*","")
+                    
+                    Plus_1_Frameshifted = start_codon + Plus_1_Frameshifted_Stops_Removed + stop_codon
+                    Plus_1_Frameshifted = Plus_1_Frameshifted.replace("*","")
+        
+                    Plus_2_Frameshifted = start_codon + Plus_2_Frameshifted_Stops_Removed + stop_codon
+                    Plus_2_Frameshifted = Plus_2_Frameshifted.replace("*","")
+        
+                    # The cysteines are removed from the resulting translated sequences. This is because
+                    # These sequences will be run through the disorder-predicting software IUPred (see Materials and
+                    # Methods)
+
+
+                    Plus1_Protein = Seq(Plus_1_Frameshifted).translate()
+                    Plus1_Protein_NoCys = str(Plus1_Protein).replace('C','')
+                    
+                    Plus2_Protein = Seq(Plus_2_Frameshifted).translate()
+                    Plus2_Protein_NoCys = str(Plus2_Protein).replace('C','')
+                    
+                    # Finally, because of the way the MySQL database was set up, it was easier to only have one control group
+                    # printed at a time.
+                    # The output is printed in the same format as the input file, only with the nucleotide sequence, protein
+                    # sequence and no-cys protein sequences changed, with the GeneDesignation changed to match the control.
+                    
+                    
+                    # The way it's set up below, undo the commenting-out of the output you'd like.
+                    
+                    # PLUS ONE OUTPUT
+                    OutputList.extend(('ShiftedReadingFrameControlPlusOne',Gene,Plus_1_Frameshifted,Plus1_Protein,Plus1_Protein_NoCys))
+                    
+                    #PLUS TWO OUTPUT
+                    #OutputList.extend(('ShiftedReadingFrameControlPlusTwo',Gene,Plus_2_Frameshifted,Plus2_Protein,Plus2_Protein_NoCys))
+                    
+                    # The file is printed as a tab-delimited file
+                    print(*OutputList,sep='\t')
+
+                    
+
+# The following can be activated to see how many entries were successfully manipulated
+# and how many were lost to the various filters
+#print('Number of entries successfully manipulated: %s' %EntryCounter)
+#print('Number lost because they did not have the designation CodingGene: %s' %NumberWithWrongDesignation)
+#print('Number lost because they had an N in their nucleotide sequence, denoting an unknown section: %s' %NumberWithNInSequence)
+#print('Number lost because their nucleotide sequences were not a multiple of 3 in length: %s' %NumberWithWrongLength)
+
+
+
+
+   
