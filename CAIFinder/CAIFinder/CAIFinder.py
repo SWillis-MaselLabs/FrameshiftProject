@@ -3,6 +3,8 @@ from pathlib import Path
 import time
 import os
 
+# Author: Sara Willis
+
 # The purpose of this file is to find the CAI values of gene segments from a 
 # tab-delimited file. The CAI, or Codon Adaptation Index, measures the degree of
 # to which a gene or gene segment exhibits the same codon bias as the rest of the species
